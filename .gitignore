@@ -1,0 +1,39 @@
+# Node
+node_modules/
+app/uis/node_modules/
+
+# Python venvs
+app/api/.venv/
+.venv/
+venv/
+env/
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# Environments
+.env
+.env.local
+.env.*
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Build outputs
+dist/
+build/
+coverage/
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Optional: lockfiles can be committed; ignore only if you prefer
+# package-lock.json
