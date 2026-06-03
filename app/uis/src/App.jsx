@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import Home from './pages/Home'
-import PCA from './pages/PCA'
+import Home from './home/page.jsx'
+import PCA from './PCA/page.jsx'
 
 export default function App() {
   const [status, setStatus] = useState('loading')
