@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function CorrelationPage() {
-  const [symbols, setSymbols] = useState(['AAPL', 'MSFT', 'GOOGL', 'AMZN']);
+  // Session Persistence Initializations
+  const [symbols, setSymbols] = useState(() => JSON.parse(localStorage.getItem('corr_symbols')) || ['AAPL', 'MSFT', 'GOOGL', 'AMZN']);
+  const [period, setPeriod] = useState(() => localStorage.getItem('corr_period') || '1y');
+  const [interval, setIntervalValue] = useState(() => localStorage.getItem('corr_interval') || '1d');
+  const [results, setResults] = useState(() => JSON.parse(localStorage.getItem('corr_results')) || null);
+
   const [newSymbol, setNewSymbol] = useState('');
-  const [period, setPeriod] = useState('1y');
-  const [interval, setIntervalValue] = useState('1d');
-  
-  const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Sync to Session Storage
+  useEffect(() => {
+    localStorage.setItem('corr_symbols', JSON.stringify(symbols));
+    localStorage.setItem('corr_period', period);
+    localStorage.setItem('corr_interval', interval);
+    localStorage.setItem('corr_results', JSON.stringify(results));
+  }, [symbols, period, interval, results]);
 
   const handleAddSymbol = (e) => {
     e.preventDefault();
@@ -24,7 +33,6 @@ export default function CorrelationPage() {
       setError('At least 2 symbols are required for correlation calculation.'); 
       return; 
     }
-    
     setLoading(true); 
     setError(null);
     setResults(null);
@@ -36,7 +44,7 @@ export default function CorrelationPage() {
         body: JSON.stringify({ symbols, period, interval })
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.detail || json.error || 'Correlation matrix failed.');
+      if (!res.ok) throw new Error('Correlation matrix calculation failed.');
       setResults(json);
     } catch (err) { 
       setError(err.message); 
@@ -45,27 +53,39 @@ export default function CorrelationPage() {
     }
   };
 
+  const handleDownloadMatrix = () => {
+    if (!results) return;
+    const blob = new Blob([JSON.stringify({ parameters: { period, interval }, matrix_payload: results }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `correlation_matrix.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getHeatmapColor = (value) => {
-    if (value >= 0) {
-      const alpha = Math.min(Math.abs(value), 1);
-      return `rgba(16, 185, 129, ${alpha * 0.85 + 0.15})`; // Matching emerald green
-    } else {
-      const alpha = Math.min(Math.abs(value), 1);
-      return `rgba(244, 63, 94, ${alpha * 0.85 + 0.15})`; // Matching rose red
-    }
+    const alpha = Math.min(Math.abs(value), 1);
+    return value >= 0 ? `rgba(16, 185, 129, ${alpha * 0.85 + 0.15})` : `rgba(244, 63, 94, ${alpha * 0.85 + 0.15})`;
   };
 
   const inputStyle = { padding: '10px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff', fontSize: '14px', outline: 'none' };
 
   return (
     <div>
-      <h2 style={{ color: '#a855f7', margin: '0 0 8px 0', fontSize: '22px' }}>Workspace 03: Correlation Matrix Engine</h2>
-      <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '24px' }}>Analyze Pearson correlation coefficients across selected assets.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h2 style={{ color: '#a855f7', margin: '0 0 8px 0', fontSize: '22px' }}>Workspace 03: Correlation Matrix Engine</h2>
+          <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '24px' }}>Analyze Pearson correlation coefficients across selected assets.</p>
+        </div>
+        {results && (
+          <button onClick={handleDownloadMatrix} style={{ background: '#334155', border: '1px solid #475569', color: '#fff', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
+            📥 Download Matrix
+          </button>
+        )}
+      </div>
       
-      {/* Configuration Section */}
       <div style={{ background: '#0f172a', padding: '24px', borderRadius: '12px', border: '1px solid #334155', marginBottom: '24px' }}>
-        
-        {/* Active Symbols */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
           {symbols.map(sym => (
             <div key={sym} style={{ background: '#a855f7', color: '#fff', padding: '6px 12px', borderRadius: '16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
@@ -75,7 +95,6 @@ export default function CorrelationPage() {
           ))}
         </div>
 
-        {/* Controls */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '12px', alignItems: 'center' }}>
           <form onSubmit={handleAddSymbol} style={{ display: 'flex', gap: '8px' }}>
             <input type="text" value={newSymbol} onChange={e => setNewSymbol(e.target.value)} placeholder="Add pair (e.g., GC=F)" style={{ ...inputStyle, width: '100%', fontFamily: 'monospace' }} />
@@ -83,15 +102,11 @@ export default function CorrelationPage() {
           </form>
           
           <select value={period} onChange={e => setPeriod(e.target.value)} style={inputStyle}>
-            <option value="3mo">3 Months</option>
-            <option value="6mo">6 Months</option>
-            <option value="1y">1 Year</option>
-            <option value="2y">2 Years</option>
+            <option value="3mo">3 Months</option><option value="6mo">6 Months</option><option value="1y">1 Year</option><option value="2y">2 Years</option>
           </select>
           
           <select value={interval} onChange={e => setIntervalValue(e.target.value)} style={inputStyle}>
-            <option value="1d">Daily</option>
-            <option value="1wk">Weekly</option>
+            <option value="1d">Daily</option><option value="1wk">Weekly</option>
           </select>
           
           <button onClick={handleComputeCorrelation} disabled={loading} style={{ background: '#a855f7', border: 'none', borderRadius: '8px', padding: '10px 24px', color: '#fff', fontWeight: 'bold', cursor: 'pointer', opacity: loading ? 0.7 : 1, transition: 'background 0.2s', height: '100%' }}>
@@ -102,7 +117,6 @@ export default function CorrelationPage() {
 
       {error && <div style={{ background: '#7f1d1d40', border: '1px solid #7f1d1d', padding: '12px', borderRadius: '8px', marginBottom: '24px', color: '#f87171' }}>{error}</div>}
 
-      {/* Results Table */}
       {results && (
         <div style={{ background: '#0f172a', borderRadius: '12px', padding: '24px', border: '1px solid #334155', overflowX: 'auto' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '500px', textAlign: 'center', fontFamily: 'monospace', fontSize: '14px' }}>
@@ -118,14 +132,11 @@ export default function CorrelationPage() {
               {results.symbols.map((rowSym, rowIndex) => (
                 <tr key={rowSym}>
                   <td style={{ borderBottom: '1px solid #1e293b', borderRight: '2px solid #334155', padding: '12px', color: '#a855f7', fontWeight: 'bold', textAlign: 'left', background: '#0f172a' }}>{rowSym}</td>
-                  {results.matrix[rowIndex].map((coefValue, colIndex) => {
-                    const cellColor = getHeatmapColor(coefValue);
-                    return (
-                      <td key={colIndex} style={{ border: '1px solid #1e293b', padding: '12px', background: cellColor, color: '#fff', fontWeight: rowIndex === colIndex ? 'bold' : 'normal' }} title={`${rowSym} vs ${results.symbols[colIndex]}`}>
-                        {coefValue.toFixed(2)}
-                      </td>
-                    );
-                  })}
+                  {results.matrix[rowIndex].map((coefValue, colIndex) => (
+                    <td key={colIndex} style={{ border: '1px solid #1e293b', padding: '12px', background: getHeatmapColor(coefValue), color: '#fff', fontWeight: rowIndex === colIndex ? 'bold' : 'normal' }}>
+                      {coefValue.toFixed(2)}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
