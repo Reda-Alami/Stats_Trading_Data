@@ -5,10 +5,12 @@ try:
     from .fetch_yahoo.fetch_yahoo import fetch_yahoo_bp
     from .PCA.pca import pca_bp
     from .indicators.indicators import indicators_bp
+    from .statistics.statistics import statistics_bp
 except Exception:
     from fetch_yahoo.fetch_yahoo import fetch_yahoo_bp
     from PCA.pca import pca_bp
     from indicators.indicators import indicators_bp
+    from statistics.statistics import statistics_bp
 
 def create_app():
     app = Flask(__name__)
@@ -20,6 +22,7 @@ def create_app():
     app.register_blueprint(fetch_yahoo_bp)
     app.register_blueprint(pca_bp)
     app.register_blueprint(indicators_bp)
+    app.register_blueprint(statistics_bp)
     
     # Fixes the 404 / Unexpected token '<' error
     @app.route('/api/health', methods=['GET'])
